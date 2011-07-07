@@ -5,6 +5,14 @@ NanoHack is an HTML5 and javascript port and extension of the TinyHack game
 (http://boingboing.net/rob/tinyhack/) originally written in Flash by Rob
 Beschizza of BoingBoing.
 
+TinyHack is a minimalist RPG adventure game where the entire game interface is
+a 9x9 array of pixels.  The player has to fight monsters, find gold and
+special items, and eventually overcome the perils of the last dungeon.
+NanoHack takes the TinyHack concept, and turns it into a javascript library
+for implementing similar games.  NanoHack extends TinyHack to allow multiple
+maps, and adventures written in NanoHack can easily extend existing objects
+to produce new types of terrain, items or game behaviour.
+
 The code consists of a fairly generic and extensible JavaScript library
 for building TinyHack-like games, together with a simple web-page which
 uses the nanohack.js library to create a TinyHack clone.
@@ -12,11 +20,12 @@ uses the nanohack.js library to create a TinyHack clone.
 Notes
 -----
 
+WARNING: the audio causes a hard crash under Safari on OS X.  That is, the
+entire browser goes down.
+
 Currently this is known to work on Chrome on OS X.  It will probably work on
 Chrome on any platform.  The audio files are .mp3 format, so sound probably
 won't work on Firefox.
-
-WARNING: the audio causes a hard crash under Safari on OS X.
 
 My primary language for writing software is Python, and it probably shows in
 the way that I write javascipt.

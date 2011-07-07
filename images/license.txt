@@ -1,0 +1,10 @@
+License
+=======
+
+The following image files in this drectory are licensed under a Creative
+Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.  All are by
+Rob Beschizza.
+
+map1.png
+mapthings.png
+sprites.png

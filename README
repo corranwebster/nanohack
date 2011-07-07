@@ -1,12 +1,30 @@
 NanoHack
 ========
 
-NanoHack is a JavaScritp port and extension of the TinyHack game
-(http://boingboing.net/rob/tinyhack/) by Rob Beschizza of BoingBoing.
+NanoHack is an HTML5 and javascript port and extension of the TinyHack game
+(http://boingboing.net/rob/tinyhack/) originally written in Flash by Rob
+Beschizza of BoingBoing.
 
 The code consists of a fairly generic and extensible JavaScript library
 for building TinyHack-like games, together with a simple web-page which
-uses the nanohack.js library to run a TinyHack clone.
+uses the nanohack.js library to create a TinyHack clone.
+
+Notes
+-----
+
+Currently this is known to work on Chrome on OS X.  It will probably work on
+Chrome on any platform.  The audio files are .mp3 format, so sound probably
+won't work on Firefox.
+
+WARNING: the audio causes a hard crash under Safari on OS X.
+
+My primary language for writing software is Python, and it probably shows in
+the way that I write javascipt.
+
+I deliberately wrote this without using any of the major javascript
+frameworks, but in the future this may need to change to provide better
+cross-browser support (in particular, a good audio library would be a
+worthwhile dependency, it seems).
 
 License
 -------
@@ -19,3 +37,5 @@ NanoHack and the javascript port of TinyHack were written by Corran Webster.
 The files in the image and sound directories are all by Rob Beschizza.
 
 The original TinyHack was written by Rob Beschizza.
+
+The original TinyHack source code is available at http://boingboing.net/rob/tinyhack/tinyhack.zip

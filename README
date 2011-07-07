@@ -1,0 +1,21 @@
+NanoHack
+========
+
+NanoHack is a JavaScritp port and extension of the TinyHack game
+(http://boingboing.net/rob/tinyhack/) by Rob Beschizza of BoingBoing.
+
+The code consists of a fairly generic and extensible JavaScript library
+for building TinyHack-like games, together with a simple web-page which
+uses the nanohack.js library to run a TinyHack clone.
+
+License
+-------
+
+This work is licensed under a Creative Commons
+Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+NanoHack and the javascript port of TinyHack were written by Corran Webster.
+
+The files in the image and sound directories are all by Rob Beschizza.
+
+The original TinyHack was written by Rob Beschizza.

@@ -1,0 +1,788 @@
+/*
+This work is licensed under a Creative Commons
+Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+This file was written by Corran Webster.
+
+This javascript file is derived from, and is a port of, TinyHack
+(http://boingboing.net/rob/tinyhack/) by Rob Beschizza.
+*/
+
+// Constants
+var view_radius = 4;
+var view_scale = 24;
+
+// XXX probably should use some cross-browser HTML5 audio library
+if (navigator.appVersion.indexOf("Chrome") != -1) {
+    // Safari barfs if there are multiple channels playing the same source
+    // but doesn't have the slow loading problem of Chrome
+    var channels_per_sound = 4;
+}
+else {
+    // allow multiple sounds to play at the same time
+    var channels_per_sound = 1;
+}
+
+// Utilities
+
+function hex(i) {
+    var h = i.toString(16);
+    if (h.length == 1) {
+        h = "0"+h;
+    }
+    return h
+}
+
+function clip(x, a, b) {
+    // clip x so that a <= x <= b
+    return Math.min(Math.max(x,a),b);
+}
+
+function load_sound(src) {
+    // preload 4 channels for each sound, so we can overlap
+    var sound = {channels: [], current: 0};
+    for (var i=0; i < channels_per_sound; i++) {
+        sound.channels[i] = document.createElement('audio');
+        sound.channels[i].src = src;
+        sound.channels[i].load();
+    }
+    return sound
+}
+
+function play_sound(sound) {
+    sound.channels[sound.current].play();
+    sound.current = (sound.current + 1) % channels_per_sound;
+}
+
+
+function load_sprites(src) {
+    var img = new Image();
+    img.src = src;
+    var canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    
+    var gc = canvas.getContext('2d');
+    gc.drawImage(img, 0, 0);
+    
+    var sprite_size = (2*view_radius+1)
+    var num_sprites = canvas.width/sprite_size;
+    sprites = new Array();
+    for (var s=0; s < num_sprites; s++) {
+        var spriteData = gc.getImageData(0, 0, canvas.width, canvas.height);
+        sprites[s] = new Array();        
+        for (var j=0; j < sprite_size; j++) {
+            sprites[s][j] = new Array();
+            var row_idx = (s*sprite_size+ j*canvas.width);
+            for (var i=0; i < sprite_size; i++) {
+                pixel_idx = (row_idx+i)*4;
+                sprites[s][j][i] = ('#' +
+                    hex(spriteData.data[pixel_idx]) +
+                    hex(spriteData.data[pixel_idx+1]) +
+                    hex(spriteData.data[pixel_idx+2])
+                );
+            }
+        }
+    }
+    return sprites;
+}
+
+
+// Location prototype
+//
+// A location represents the logical contents of square/pixel on a map.
+// These are featherweight objects used repeatedly in a given map.
+// The on-screen representation will vary depending on the Dungeon's legend.
+
+function Location(color, passable, transparent) {
+    if (!color) {
+        color = "#000000";
+    }
+    if (!passable) {
+        passable = false;
+    }
+    if (!transparent) {
+        transparent = false;
+    }
+
+    this.color = color;
+    this._passable = passable;
+    this._transparent = transparent;
+}
+
+Location.prototype.passable = function(game, who) {
+    // whether the location is passable, given the current game state
+    // this doesn't take into account monsters or other obstructions
+    return this._passable;
+}
+
+Location.prototype.transparent = function(game, who) {
+    // whether the location can be seen through, given the current game state
+    // this doesn't take into account monsters or other obstructions
+    return this._transparent;
+}
+
+Location.prototype.look = function(game, who) {
+    // if the location is impassable, instead look() into the square
+    // location gets to override behaviour
+    return false;
+}
+
+// A location which can be traversed if the player has an item
+function PassableWithItemLocation(color, item_name, transparent) {
+    if (!color) {
+        color = "#000000";
+    }
+    if (!transparent) {
+        transparent = false;
+    }
+
+    this.color = color;
+    this._transparent = transparent;
+    this._item_name = item_name;
+}
+PassableWithItemLocation.prototype = new Location();
+
+PassableWithItemLocation.prototype.passable = function(game, who) {
+    // whether the location is passable, given the current game state
+    // this doesn't take into account monsters or other obstructions
+    for (idx in who.things) {
+        var thing = who.things[idx];
+        if (thing.name == this._item_name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+var drinking_water = new Location("#5672ff", false, true);
+drinking_water.look = function(game, tx, ty) {
+    if (game.player.hp < game.player.max_hp) {
+        game.player.hp = Math.min(game.player.hp+10, game.player.max_hp);
+        play_sound(sound_drink);
+        game.player.dungeon.setLocation(tx, ty, '\x30');
+    }    
+}
+
+var pub = new Location("#000000");
+pub.look = function(game, tx, ty) {
+    if (game.player.hp < game.player.max_hp) {
+        game.player.hp = game.player.max_hp;
+        play_sound(sound_drink);
+        game.show_sprite(5);
+    }
+}
+
+var church = new Location("#000000");
+church.look = function(game, tx, ty) {
+    if (game.player.magic == 0) {
+        game.player.magic = 1;
+        play_sound(sound_magic);
+        game.show_sprite(6);
+    }
+}
+
+// Location instances
+
+var default_legend = {
+    '\x00': new Location("#000000"),
+    '\x01': new Location("#ffffff"),
+    '\x02': new Location("#915140"),
+    '\x03': new Location("#5d5d5d"),
+    '\x04': new Location("#008800"),
+    '\x05': new Location("#d1a296"),
+    
+    '\x10': new Location("#003c80", false, true),
+    
+    '\x20': new PassableWithItemLocation("#0047ca", "boat", true),
+    
+    '\x30': new Location("#7f7f7f", true, true),
+    '\x31': new Location("#bcbcbc", true, true),
+    '\x32': new Location("#00aa00", true, true),
+    '\x33': new Location("#9cde8d", true, true),
+    '\x34': new Location("#ffff00", true, true),
+    
+    '\x40': new Location("#ff0000", true, true),
+    '\x41': drinking_water,
+    '\x50': pub,
+    '\x51': church,
+}
+
+var sound_enter_dungeon = load_sound("sounds/enterdungeon.mp3");
+var sound_open_door = load_sound("sounds/dooropen.mp3");
+var sound_drink = load_sound("sounds/drink.mp3");
+var sound_magic = load_sound("sounds/magic.mp3");
+var sound_gold = load_sound("sounds/gold.mp3");
+var sound_powerup = load_sound("sounds/powerup.mp3");
+var sound_level_up = load_sound("sounds/levelup.mp3");
+var sound_monster_hit = load_sound("sounds/monsterhit.mp3");
+var sound_player_hit = load_sound("sounds/playerhit.mp3");
+var sound_start = load_sound("sounds/music_start.mp3");
+var sound_dead = load_sound("sounds/dead.mp3");
+var sound_win = load_sound("sounds/music_death.mp3");
+
+// Things
+
+function Thing(name, color, x, y) {
+    this.name = name;
+    this.x = x;
+    this.y = y;
+    
+    this.color = color;
+
+    this.block = false;
+}
+
+Thing.prototype.draw = function(gc, x, y) {
+    // draw at the indicated location in the view
+    // will not be called unless already cleared as OK
+    gc.fillStyle = this.color;
+    gc.fillRect(x*view_scale, y*view_scale, view_scale, view_scale);
+}
+
+Thing.prototype.move = function(game) {
+    return false;
+}
+
+Thing.prototype.blocks = function(game) {
+    return this.block;
+}
+
+Thing.prototype.special = function(game) {
+    return false;
+}
+
+Thing.prototype.magic = function(game) {
+    return false;
+}
+
+Thing.prototype.remove = function(game) {
+    // remove thing from dungeon
+    var idx = game.player.dungeon.things.indexOf(this);
+    if (idx != -1) {
+        game.player.dungeon.things.splice(idx, 1);
+    }
+}
+
+var win = new Thing('win');
+win.draw = function(gc, x, y) {
+    return false;
+}
+win.special = function(game) {
+    game.gameOver("win");
+}
+
+var gate = new Thing('gate');
+gate.draw = function(gc, x, y) {
+    return false;
+}
+gate.blocks = function(game) {
+    var player = game.player;
+    return !(player.hasThing('key') && (player.cash >= 16))
+}
+
+
+function Gold(x, y) {
+    this.name = "gold"
+    this.color = "#ffff00"
+    this.x = x;
+    this.y = y;
+}
+Gold.prototype = new Thing();
+
+Gold.prototype.special = function(game) {
+    game.player.cash++;
+    this.remove(game);
+    play_sound(sound_gold);
+    //game.show_sprite(7);
+    return true;
+}
+
+function PowerUp(name, sprite, x, y) {
+    this.name = name;
+    this.x = x;
+    this.y = y;
+    this.color = "#00fcff";
+    this.sprite = sprite;
+
+    this.block = false;
+}
+PowerUp.prototype = new Thing();
+
+PowerUp.prototype.special = function(game) {
+    game.player.things.push(this);
+    this.remove(game);
+    play_sound(sound_powerup);
+    game.show_sprite(this.sprite);
+    return true;
+}
+
+var boat = new PowerUp('boat', 0)
+var sword = new PowerUp('sword', 1)
+var shield = new PowerUp('shield', 2)
+var key = new PowerUp('key', 8)
+
+
+function Monster(level, x, y) {
+    this.name = 'monster';
+    this.x = x;
+    this.y = y;
+    this.level = level;
+    
+    this.block = true;
+    
+    this.colors = [
+        "#660000",
+        "#660000",
+        "#660000",
+        "#AA0000",
+        "#AA0000",
+        "#CC0000",
+        "#FF0000",
+        "#FF0066",
+        "#FF00FC",
+        "#000000",
+    ]
+    this.color = this.getColor();
+}
+Monster.prototype = new Thing();
+
+Monster.prototype.getColor = function() {
+    if (this.level < 10) {
+        return this.colors[this.level];
+    }
+    return "#000000";
+}
+
+Monster.prototype.move = function(game) {
+    var x = this.x;
+    var y = this.y;
+    var tx = game.player.x;
+    var ty = game.player.y;
+    
+    // attack if adjacent
+    if (((y == ty) && (Math.abs(x-tx) == 1)) ||
+            ((x == tx) && (Math.abs(y-ty) == 1))) {
+        this.attack(game);
+        return;
+    }
+
+    // otherwise only move if close to player
+    if ((x-tx >= -view_radius) && (x-tx <= view_radius) && 
+            (y-ty >= -view_radius) && (y-ty <= view_radius)) {
+        if (x < tx) {
+            if (game.passable(x+1, y, this)) {
+                this.x++;
+                return;
+            }
+        }
+        if (x > tx) {
+            if (game.passable(x-1, y, this)) {
+                this.x--;
+                return;
+            }
+        }
+        if (y < ty) {
+            if (game.passable(x, y+1, this)) {
+                this.y++;
+                return;
+            }
+        }
+        if (y > ty) {
+            if (game.passable(x, y-1, this)) {
+                this.y--;
+                return;
+            }
+        }
+    }
+}
+
+Monster.prototype.attack = function(game) {
+    var damage = (Math.random(3)+5)*this.level;
+    if (game.player.hasThing("shield")) {
+        damage = Math.ceil(damage/2);
+    }
+    play_sound(sound_monster_hit);
+    game.hit_player(damage);
+}
+
+Monster.prototype.special = function(game) {
+    // player is adjacent and moved towards monster... attack!
+    if (game.player.hasThing("sword")) {
+        var damage = 2;
+    }
+    else {
+        var damage = 1;
+    }
+    this.level -= damage;
+    this.color = this.getColor();
+    play_sound(sound_player_hit);
+    
+    if (this.level < 1) {
+        this.remove(game);
+        game.player.experience();
+    }
+}
+
+Monster.prototype.magic = function(game) {
+    this.level = Math.ceil(this.level/2);
+    this.color = this.getColor();
+    play_sound(sound_player_hit);
+}
+
+// Dungeon prototype
+function Dungeon(name, map_data, width, legend, things, teleports, pressure_pads) {
+    // the name of the dungeon
+    this.name = name;
+    
+    // an image containing the map data
+    this.map_data = map_data;
+    
+    // the legend that maps colours to location types
+    this.legend = legend;
+    
+    this.things = things;
+    
+    // teleporters between locations (usually red squares)
+    this.teleports = teleports;
+    
+    // pressure_pads to open locations (usually grey squares)
+    this.pressure_pads = pressure_pads;
+    
+    // secondary attributes
+    this.width = width;
+    this.height = map_data.length/width;
+    this.default_color = "#000000";
+}
+
+Dungeon.prototype.setLocation = function(x, y, location) {
+    this.locations[y][x] = this.legend[location];
+}
+
+Dungeon.prototype.loadMap = function() {
+    this.locations = new Array();
+    for (var y=0; y < this.height; y++) {
+        this.locations[y] = new Array();
+        var row_idx = y*this.width;
+        for (var x=0; x < this.width; x++) {
+            var idx = row_idx+x;
+            this.locations[y][x] = this.legend[this.map_data.charAt(idx)];
+        }
+    }
+}
+
+
+Dungeon.prototype.drawMap = function(gc, x,y) {
+    for (var i=-view_radius; i <= view_radius; i++) {
+        for (var j=-view_radius; j <= view_radius; j++) {
+            if ((x+i >= 0) && (x+i < this.width) && (y+j >= 0) && (y+j < this.height)) {
+                gc.fillStyle = this.locations[y+j][x+i].color;
+            }
+            else {
+                gc.fillStyle = this.default_color;
+            }
+            gc.fillRect((i+view_radius)*view_scale, (j+view_radius)*view_scale, view_scale, view_scale);
+        }
+    }
+    
+    for (idx in this.things) {
+        var thing = this.things[idx];
+        var i = thing.x - x;
+        var j = thing.y - y;
+        if ((i >= -view_radius) && (i <= view_radius) &&
+                (j >= -view_radius) && (j <= view_radius)) {
+            thing.draw(gc, i+view_radius, j+view_radius);
+        }
+    }
+}
+
+
+// player object
+
+function Player(dungeon, x, y) {
+    this.dungeon = dungeon;
+    this.x = x;
+    this.y = y;
+    
+    this.max_hp = 100;
+    this.hp = 100;
+    
+    this.exp = 0;
+    this.level = 0;
+    
+    this.cash = 0;
+    this.things = [];
+    this.magic = 0;
+    
+    this.color = "#ffffff";
+}
+
+Player.prototype.draw = function(gc, x, y) {    
+    // draw the player
+    gc.fillStyle = this.color;
+    gc.fillRect((view_radius+this.x-x)*view_scale, (view_radius+this.y-y)*view_scale, view_scale, view_scale);
+
+    // draw the hp indicator
+    gc.fillStyle = this.health_color();
+    gc.fillRect(0, 0, view_scale, view_scale);
+
+    // draw the magic indicator
+    if (this.magic > 0) {
+        gc.fillStyle = this.magic_color();
+        gc.fillRect(2*view_radius*view_scale, 0, view_scale, view_scale);
+    }
+}
+
+Player.prototype.health_color = function() {
+    var health = this.hp/this.max_hp;
+    if (health > .80) { return "#00FF00";}
+    if (health > .70) { return "#66FF00";}
+    if (health > .60) { return "#AAFF00";}
+    if (health > .50) { return "#DDFF00";}
+    if (health > .40) { return "#FFFF00";}
+    if (health > .30) { return "#ffdd00";}
+    if (health > .20) { return "#ffaa00";}
+    if (health > .10) { return "#ff6600";}
+    return "#FF0000";
+}
+
+Player.prototype.magic_color = function() {
+    var r = hex(Math.round(Math.random() * 0xff));
+    var g = hex(Math.round(Math.random() * 0xff));
+    var b = hex(Math.round(Math.random() * 0xff));
+    return '#'+r+g+b;
+}
+
+Player.prototype.hasThing = function(name) {
+    for (idx in this.things) {
+        if (this.things[idx].name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Player.prototype.experience = function() {
+    this.exp++;
+    var bumps = [4, 8, 16, 32, 48];
+    if (bumps.indexOf(this.exp) != -1) {
+        this.level++;
+        this.hp += 10;
+        this.max_hp += 10;
+        play_sound(sound_level_up);
+    }
+}
+
+// game object
+
+function Game(dungeons, player) {
+    this.dungeons = dungeons;
+    this.player = player;
+    
+    this.sprite = -1;
+    
+    game = this;
+    document.onkeydown = function(event) { game.keyDown(event); };
+}
+
+Game.prototype.start = function() {
+    game.show_sprite(4);
+    game.drawMap();   
+}
+
+Game.prototype.doTimer = function() {
+    this.drawMap();
+    this.timeout = setTimeout("game.doTimer()", 250);
+}
+
+Game.prototype.move = function(dx, dy) {
+    var tx = this.player.x + dx;
+    var ty = this.player.y + dy;
+    // XXX validate, etc
+    
+    // if we can enter the square, do so
+    if (this.passable(tx, ty, this.player)) {
+        this.player.x = tx;
+        this.player.y = ty;
+    }
+    else {
+        this.look(tx, ty);
+    }
+}
+
+Game.prototype.magic = function() {
+    if (this.player.magic <= 0) {
+        return;
+    }
+    play_sound(sound_magic);
+    this.player.magic--;
+
+    var x = this.player.x;
+    var y = this.player.y;
+
+    for (idx in this.player.dungeon.things) {
+        var thing = this.player.dungeon.things[idx];
+        if ((thing.x - x >= -view_radius) && (thing.x - x <= view_radius) &&
+                (thing.y - y >= -view_radius) && (thing.y - y <= view_radius)) {
+            thing.magic(game);
+        }
+    }
+}
+
+Game.prototype.hit_player = function(damage) {
+    if (this.player.hasThing("shield")) {
+        // shield halves damage
+        damage = Math.ceil(damage/2);
+    }
+    this.player.hp -= damage;
+    if (this.player.hp <= 0) {
+        this.gameOver("death");
+    }
+}
+
+Game.prototype.passable = function(tx, ty, who) {
+    var dungeon = this.player.dungeon;
+    
+    for (idx in this.player.dungeon.things) {
+        var thing = this.player.dungeon.things[idx];
+        if ((thing.x == tx) && (thing.y == ty) && thing.blocks(this)) {
+            return false;
+        }
+    }
+    
+    return dungeon.locations[ty][tx].passable(this, who);
+}
+
+Game.prototype.look = function(tx, ty) {
+    var dungeon = this.player.dungeon;
+
+    for (idx in dungeon.things) {
+        var thing = dungeon.things[idx];
+        if ((thing.x == tx) && (thing.y == ty) && thing.blocks(this)) {
+            thing.special(game);
+        }
+    }
+
+    return dungeon.locations[ty][tx].look(this, tx, ty);
+}
+
+Game.prototype.doTurn = function() {
+    this.specials();
+    this.pressure_pad();
+    this.teleport();
+    this.monster_move();
+}
+
+Game.prototype.specials = function() {
+    for (idx in this.player.dungeon.things) {
+        var thing = this.player.dungeon.things[idx];
+        if ((this.player.x == thing.x) && (this.player.y == thing.y)) {
+            thing.special(game);
+        }
+    }
+}
+
+Game.prototype.teleport = function() {
+    for (idx in this.player.dungeon.teleports) {
+        var teleporter = this.player.dungeon.teleports[idx];
+        if ((teleporter.x == this.player.x) && (teleporter.y == this.player.y)) {
+            this.player.dungeon = this.dungeons[teleporter.target_dungeon];
+            this.player.x = teleporter.tx;
+            this.player.y = teleporter.ty;
+            play_sound(sound_enter_dungeon);
+            return;
+        }
+    }
+}
+
+Game.prototype.pressure_pad = function() {
+    for (idx in this.player.dungeon.pressure_pads) {
+        var pressure_pad = this.player.dungeon.pressure_pads[idx];
+        if ((pressure_pad.x == this.player.x) && (pressure_pad.y == this.player.y)) {
+            // set the target x, y to the location type specified by 'open'
+            var target_dungeon = this.dungeons[pressure_pad.target_dungeon]
+            target_dungeon.setLocation(pressure_pad.tx, pressure_pad.ty,
+                pressure_pad.open);
+            play_sound(sound_open_door);
+        }
+    }
+}
+
+Game.prototype.monster_move = function() {
+    for (idx in this.player.dungeon.things) {
+        this.player.dungeon.things[idx].move(this);
+    }
+}
+
+
+Game.prototype.show_sprite = function(n) {
+    if (!this.sprites) {
+        this.sprites = load_sprites(sprite_src);
+    }
+    this.sprite = n;
+}
+
+Game.prototype.hide_sprite = function() {
+    if (this.sprite == 4) {
+        // starting out
+        play_sound(sound_start);
+    }
+    this.sprite = -1;
+}
+
+Game.prototype.drawMap = function() {
+    var canvas = document.getElementById("view");
+    var gc = canvas.getContext("2d");
+
+    if (this.sprite == -1) {
+        var dungeon = this.player.dungeon;
+        var x = clip(this.player.x, view_radius, dungeon.width-view_radius-1);
+        var y = clip(this.player.y, view_radius, dungeon.height-view_radius-1);
+    
+        dungeon.drawMap(gc, x, y);
+        this.player.draw(gc, x, y);
+    }
+    else {
+        for (var i=0; i <= 2*view_radius; i++) {
+            for (var j=0; j <= 2*view_radius; j++) {
+                gc.fillStyle = this.sprites[this.sprite][j][i];
+                gc.fillRect(i*view_scale, j*view_scale, view_scale, view_scale);
+            }
+        }
+        
+    }
+}
+
+Game.prototype.keyDown = function(event) {
+    if (this.finished) {
+        // if game is finished, do nothing
+        return;
+    }
+    if (this.sprite != -1) {
+        this.hide_sprite();
+        this.drawMap();
+        return;
+    }
+    switch (event.keyCode) {
+        case 32: this.magic(); break; // space
+        case 37: this.move(-1, 0); break; // left
+        case 38: this.move( 0,-1); break; // up
+        case 39: this.move( 1, 0); break; // right
+        case 40: this.move( 0, 1); break; // down
+        default: return;
+    }
+    this.doTurn();
+    this.drawMap();
+}
+
+Game.prototype.gameOver = function(why) {
+    this.finished = true;
+    if (why == "win") {
+        play_sound(sound_win);
+        this.show_sprite(9);
+    }
+    else {
+        play_sound(sound_dead);
+        this.show_sprite(3);
+    }
+}

@@ -1,0 +1,20 @@
+License
+=======
+
+The following audio files in this drectory are licensed under a Creative
+Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.  All are by
+Rob Beschizza.
+
+bossdead.mp3
+dead.mp3
+dooropen.mp3
+drink.mp3
+enterdungeon.mp3
+gold.mp3
+levelup.mp3
+magic.mp3
+monsterhit.mp3
+music_death.mp3
+music_start.mp3
+playerhit.mp3
+powerup.mp3

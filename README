@@ -20,12 +20,9 @@ uses the nanohack.js library to create a TinyHack clone.
 Notes
 -----
 
-WARNING: the audio causes a hard crash under Safari on OS X.  That is, the
-entire browser goes down.
-
-Currently this is known to work on Chrome on OS X.  It will probably work on
-Chrome on any platform.  The audio files are .mp3 format, so sound probably
-won't work on Firefox.
+Currently this is known to work on Chrome on OS X and seems to work on Safari.
+It will probably work on Chrome on any platform.  The audio files are .mp3
+format, so sound probably won't work on Firefox.
 
 My primary language for writing software is Python, and it probably shows in
 the way that I write javascipt.

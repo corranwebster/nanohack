@@ -54,33 +54,18 @@ function play_sound(sound) {
     sound.current = (sound.current + 1) % channels_per_sound;
 }
 
-
-function load_sprites(src) {
-    var img = new Image();
-    img.src = src;
-    var canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    
-    var gc = canvas.getContext('2d');
-    gc.drawImage(img, 0, 0);
-    
+function load_sprites(src, palette) {
     var sprite_size = (2*view_radius+1)
-    var num_sprites = canvas.width/sprite_size;
+    var num_sprites = src.length/sprite_size/sprite_size;
     sprites = new Array();
     for (var s=0; s < num_sprites; s++) {
-        var spriteData = gc.getImageData(0, 0, canvas.width, canvas.height);
         sprites[s] = new Array();        
         for (var j=0; j < sprite_size; j++) {
             sprites[s][j] = new Array();
-            var row_idx = (s*sprite_size+ j*canvas.width);
+            var row_idx = (s + j*num_sprites)*sprite_size;
             for (var i=0; i < sprite_size; i++) {
-                pixel_idx = (row_idx+i)*4;
-                sprites[s][j][i] = ('#' +
-                    hex(spriteData.data[pixel_idx]) +
-                    hex(spriteData.data[pixel_idx+1]) +
-                    hex(spriteData.data[pixel_idx+2])
-                );
+                pixel_idx = (row_idx+i);
+                sprites[s][j][i] = palette[src[pixel_idx]]
             }
         }
     }
@@ -717,7 +702,7 @@ Game.prototype.monster_move = function() {
 
 Game.prototype.show_sprite = function(n) {
     if (!this.sprites) {
-        this.sprites = load_sprites(sprite_src);
+        this.sprites = load_sprites(sprite_src, sprite_palette);
     }
     this.sprite = n;
 }

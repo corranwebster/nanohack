@@ -274,6 +274,26 @@ gate.blocks = function(game) {
     return !(player.hasThing('key') && (player.cash >= 16))
 }
 
+// Teleporter - move the player to another place
+function Teleporter(x, y, target_dungeon, tx, ty) {
+    this.x = x;
+    this.y = y;
+    this.target_dungeon = target_dungeon;
+    this.tx = tx;
+    this.ty = ty;
+}
+Teleporter.prototype = new Thing();
+Teleporter.prototype.name = "teleporter";
+Teleporter.prototype.color = "#ff0000";
+
+Teleporter.prototype.special = function(game) {
+    // move the player to the teleporter's target
+    game.player.dungeon = game.dungeons[this.target_dungeon];
+    game.player.x = this.tx;
+    game.player.y = this.ty;
+    play_sound(sound_enter_dungeon);
+}
+
 // Gold - if player enters square, increment cash & remove this from game
 function Gold(x, y) {
     this.name = "gold"
@@ -429,7 +449,7 @@ Monster.prototype.magic = function(game) {
 }
 
 // Dungeon prototype
-function Dungeon(name, map_data, width, legend, things, teleports, pressure_pads) {
+function Dungeon(name, map_data, width, legend, things, pressure_pads) {
     // the name of the dungeon
     this.name = name;
     
@@ -440,9 +460,6 @@ function Dungeon(name, map_data, width, legend, things, teleports, pressure_pads
     this.legend = legend;
     
     this.things = things;
-    
-    // teleporters between locations (usually red squares)
-    this.teleports = teleports;
     
     // pressure_pads to open locations (usually grey squares)
     this.pressure_pads = pressure_pads;
@@ -667,7 +684,6 @@ Game.prototype.look = function(tx, ty) {
 Game.prototype.doTurn = function() {
     this.specials();
     this.pressure_pad();
-    this.teleport();
     this.monster_move();
 }
 
@@ -676,19 +692,6 @@ Game.prototype.specials = function() {
         var thing = this.player.dungeon.things[idx];
         if ((this.player.x == thing.x) && (this.player.y == thing.y)) {
             thing.special(game);
-        }
-    }
-}
-
-Game.prototype.teleport = function() {
-    for (idx in this.player.dungeon.teleports) {
-        var teleporter = this.player.dungeon.teleports[idx];
-        if ((teleporter.x == this.player.x) && (teleporter.y == this.player.y)) {
-            this.player.dungeon = this.dungeons[teleporter.target_dungeon];
-            this.player.x = teleporter.tx;
-            this.player.y = teleporter.ty;
-            play_sound(sound_enter_dungeon);
-            return;
         }
     }
 }

@@ -40,61 +40,6 @@ var sprite_palette = {
     '\x13': '#000000',
 }
 
-var teleporters = [
-    {x: 34, y: 41, target_dungeon: 'main', tx: 1, ty: 8}, 
-    {x: 0, y: 8, target_dungeon: 'main', tx: 35, ty: 41},
-    
-    {x: 35, y: 38, target_dungeon: 'main', tx: 94, ty: 45},
-    {x: 94, y: 46, target_dungeon: 'main', tx: 36, ty: 38},
-    
-    {x: 29, y: 42, target_dungeon: 'main', tx: 28, ty: 13},
-    {x: 28, y: 14, target_dungeon: 'main', tx: 30, ty: 42},
-    
-    {x: 27, y: 43, target_dungeon: 'main', tx: 45, ty: 13},
-    {x: 45, y: 14, target_dungeon: 'main', tx: 27, ty: 42},
-    
-    {x: 23, y: 41, target_dungeon: 'main', tx: 50, ty: 13},
-    {x: 49, y: 13, target_dungeon: 'main', tx: 24, ty: 41},
-    
-    {x: 22, y: 37, target_dungeon: 'main', tx: 23, ty: 61},
-    {x: 23, y: 62, target_dungeon: 'main', tx: 23, ty: 37},
-    
-    {x: 20, y: 39, target_dungeon: 'main', tx: 43, ty: 62},
-    {x: 44, y: 62, target_dungeon: 'main', tx: 20, ty: 40},
-    
-    {x: 39, y: 39, target_dungeon: 'main', tx: 56, ty: 62},
-    {x: 57, y: 62, target_dungeon: 'main', tx: 40, ty: 39},
-    
-    {x: 41, y: 42, target_dungeon: 'main', tx: 70, ty: 62},
-    {x: 71, y: 62, target_dungeon: 'main', tx: 42, ty: 42},
-    
-    {x: 43, y: 39, target_dungeon: 'main', tx: 88, ty: 60},
-    {x: 88, y: 61, target_dungeon: 'main', tx: 44, ty: 39},
-    
-    {x: 20, y: 29, target_dungeon: 'main', tx: 116, ty: 45},
-    {x: 116, y: 46, target_dungeon: 'main', tx: 20, ty: 30},
-    
-    {x: 21, y: 23, target_dungeon: 'main', tx: 115, ty: 61},
-    {x: 115, y: 62, target_dungeon: 'main', tx: 22, ty: 23},
-    
-    {x: 24, y: 26, target_dungeon: 'main', tx: 97, ty: 61},
-    {x: 97, y: 62, target_dungeon: 'main', tx: 25, ty: 26},
-    
-    {x: 34, y: 20, target_dungeon: 'main', tx: 76, ty: 14},
-    {x: 77, y: 14, target_dungeon: 'main', tx: 34, ty: 21},
-    
-    {x: 41, y: 21, target_dungeon: 'main', tx: 119, ty: 13},
-    {x: 119, y: 14, target_dungeon: 'main', tx: 42, ty: 21},
-    
-    {x: 38, y: 24, target_dungeon: 'main', tx: 13, ty: 61},
-    {x: 13, y: 62, target_dungeon: 'main', tx: 39, ty: 24},
-    
-    {x: 43, y: 31, target_dungeon: 'main', tx: 6, ty: 43},
-    {x: 6, y: 44, target_dungeon: 'main', tx: 44, ty: 31},
-    
-    {x: 31, y: 31, target_dungeon: 'main', tx: 70, ty: 45}    
-];
-
 var pressure_pads = [
     {x: 29, y: 7, target_dungeon: 'main', tx: 34, ty: 5, open: '\x30'}, 
     {x: 14, y: 49, target_dungeon: 'main', tx: 2, ty: 56, open: '\x30'}, 
@@ -224,7 +169,59 @@ var things = [
     new Monster(8, 71, 39),
     new Monster(8, 71, 56),
     gate,
-    win
+    win,
+    new Teleporter(34, 41, 'main', 1, 8), 
+    new Teleporter(0, 8, 'main', 35, 41),
+    
+    new Teleporter(35, 38, 'main', 94, 45),
+    new Teleporter(94, 46, 'main', 36, 38),
+    
+    new Teleporter(29, 42, 'main', 28, 13),
+    new Teleporter(28, 14, 'main', 30, 42),
+    
+    new Teleporter(27, 43, 'main', 45, 13),
+    new Teleporter(45, 14, 'main', 27, 42),
+    
+    new Teleporter(23, 41, 'main', 50, 13),
+    new Teleporter(49, 13, 'main', 24, 41),
+    
+    new Teleporter(22, 37, 'main', 23, 61),
+    new Teleporter(23, 62, 'main', 23, 37),
+    
+    new Teleporter(20, 39, 'main', 43, 62),
+    new Teleporter(44, 62, 'main', 20, 40),
+    
+    new Teleporter(39, 39, 'main', 56, 62),
+    new Teleporter(57, 62, 'main', 40, 39),
+    
+    new Teleporter(41, 42, 'main', 70, 62),
+    new Teleporter(71, 62, 'main', 42, 42),
+    
+    new Teleporter(43, 39, 'main', 88, 60),
+    new Teleporter(88, 61, 'main', 44, 39),
+    
+    new Teleporter(20, 29, 'main', 116, 45),
+    new Teleporter(116, 46, 'main', 20, 30),
+    
+    new Teleporter(21, 23, 'main', 115, 61),
+    new Teleporter(115, 62, 'main', 22, 23),
+    
+    new Teleporter(24, 26, 'main', 97, 61),
+    new Teleporter(97, 62, 'main', 25, 26),
+    
+    new Teleporter(34, 20, 'main', 76, 14),
+    new Teleporter(77, 14, 'main', 34, 21),
+    
+    new Teleporter(41, 21, 'main', 119, 13),
+    new Teleporter(119, 14, 'main', 42, 21),
+    
+    new Teleporter(38, 24, 'main', 13, 61),
+    new Teleporter(13, 62, 'main', 39, 24),
+    
+    new Teleporter(43, 31, 'main', 6, 43),
+    new Teleporter(6, 44, 'main', 44, 31),
+    
+    new Teleporter(31, 31, 'main', 70, 45)    
 ]
 
 // specials
@@ -235,7 +232,7 @@ key.x = 106; key.y = 12;
 gate.x = 31; gate.y = 31;
 win.x = 71; win.y = 47;
 
-var dungeon = new Dungeon("main", map_data, 128, default_legend, things, teleporters, pressure_pads);
+var dungeon = new Dungeon("main", map_data, 128, default_legend, things, pressure_pads);
 
 var player = new Player(dungeon, 25, 41);
 

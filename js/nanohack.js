@@ -208,6 +208,7 @@ var sound_win = load_sound("sounds/music_death.mp3");
 
 // Things
 
+// Abstract base type for things which are not terrain
 function Thing(name, color, x, y) {
     this.name = name;
     this.x = x;
@@ -226,18 +227,23 @@ Thing.prototype.draw = function(gc, x, y) {
 }
 
 Thing.prototype.move = function(game) {
+    // if the Thing is self-mobile, update its location
+    // can be used for other turn-based actions
     return false;
 }
 
 Thing.prototype.blocks = function(game) {
+    // return true if the Thing blocks movement
     return this.block;
 }
 
 Thing.prototype.special = function(game) {
+    // special interaction if player (tries to) enter same location as Thing
     return false;
 }
 
 Thing.prototype.magic = function(game) {
+    // the Thing was in range of magic, update as appropriate
     return false;
 }
 
@@ -249,6 +255,7 @@ Thing.prototype.remove = function(game) {
     }
 }
 
+// Winning square - entering this triggers end of game with "win" condition
 var win = new Thing('win');
 win.draw = function(gc, x, y) {
     return false;
@@ -257,6 +264,7 @@ win.special = function(game) {
     game.gameOver("win");
 }
 
+// Gate - can only be entered if the player has the key and enough cash
 var gate = new Thing('gate');
 gate.draw = function(gc, x, y) {
     return false;
@@ -266,7 +274,7 @@ gate.blocks = function(game) {
     return !(player.hasThing('key') && (player.cash >= 16))
 }
 
-
+// Gold - if player enters square, increment cash & remove this from game
 function Gold(x, y) {
     this.name = "gold"
     this.color = "#ffff00"
@@ -283,6 +291,7 @@ Gold.prototype.special = function(game) {
     return true;
 }
 
+// PowerUp - base type for the different powerups
 function PowerUp(name, sprite, x, y) {
     this.name = name;
     this.x = x;
@@ -295,6 +304,7 @@ function PowerUp(name, sprite, x, y) {
 PowerUp.prototype = new Thing();
 
 PowerUp.prototype.special = function(game) {
+    // if player enters square, add to inventory, remove from game, show sprite
     game.player.things.push(this);
     this.remove(game);
     play_sound(sound_powerup);
@@ -302,12 +312,13 @@ PowerUp.prototype.special = function(game) {
     return true;
 }
 
+// PowerUp instances
 var boat = new PowerUp('boat', 0)
 var sword = new PowerUp('sword', 1)
 var shield = new PowerUp('shield', 2)
 var key = new PowerUp('key', 8)
 
-
+// Monster - mobile monsters that attack players
 function Monster(level, x, y) {
     this.name = 'monster';
     this.x = x;
@@ -333,6 +344,7 @@ function Monster(level, x, y) {
 Monster.prototype = new Thing();
 
 Monster.prototype.getColor = function() {
+    // look up color based on level of monster
     if (this.level < 10) {
         return this.colors[this.level];
     }
@@ -340,6 +352,7 @@ Monster.prototype.getColor = function() {
 }
 
 Monster.prototype.move = function(game) {
+    // move the monster
     var x = this.x;
     var y = this.y;
     var tx = game.player.x;
@@ -383,10 +396,8 @@ Monster.prototype.move = function(game) {
 }
 
 Monster.prototype.attack = function(game) {
+    // attack the player - do random damage, halved by shield
     var damage = (Math.random(3)+5)*this.level;
-    if (game.player.hasThing("shield")) {
-        damage = Math.ceil(damage/2);
-    }
     play_sound(sound_monster_hit);
     game.hit_player(damage);
 }
@@ -404,12 +415,14 @@ Monster.prototype.special = function(game) {
     play_sound(sound_player_hit);
     
     if (this.level < 1) {
+        // monster dead
         this.remove(game);
         game.player.experience();
     }
 }
 
 Monster.prototype.magic = function(game) {
+    // monster zapped by magic, halve level
     this.level = Math.ceil(this.level/2);
     this.color = this.getColor();
     play_sound(sound_player_hit);

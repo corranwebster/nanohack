@@ -294,6 +294,26 @@ Teleporter.prototype.special = function(game) {
     play_sound(sound_enter_dungeon);
 }
 
+// PressurePad - change the terrain (eg. open a door) elsewhere
+function PressurePad(x, y, target_dungeon, tx, ty, open) {
+    this.x = x;
+    this.y = y;
+    this.target_dungeon = target_dungeon;
+    this.tx = tx;
+    this.ty = ty;
+    this.open = open;
+}
+PressurePad.prototype = new Thing();
+PressurePad.prototype.name = "pressure pad";
+PressurePad.prototype.color = "#bcbcbc";
+
+PressurePad.prototype.special = function(game) {
+    // open the target door
+    var target_dungeon = game.dungeons[this.target_dungeon]
+    target_dungeon.setLocation(this.tx, this.ty, this.open);
+    play_sound(sound_open_door);
+}
+
 // Gold - if player enters square, increment cash & remove this from game
 function Gold(x, y) {
     this.name = "gold"
@@ -449,7 +469,7 @@ Monster.prototype.magic = function(game) {
 }
 
 // Dungeon prototype
-function Dungeon(name, map_data, width, legend, things, pressure_pads) {
+function Dungeon(name, map_data, width, legend, things) {
     // the name of the dungeon
     this.name = name;
     
@@ -460,9 +480,6 @@ function Dungeon(name, map_data, width, legend, things, pressure_pads) {
     this.legend = legend;
     
     this.things = things;
-    
-    // pressure_pads to open locations (usually grey squares)
-    this.pressure_pads = pressure_pads;
     
     // secondary attributes
     this.width = width;
@@ -683,7 +700,6 @@ Game.prototype.look = function(tx, ty) {
 
 Game.prototype.doTurn = function() {
     this.specials();
-    this.pressure_pad();
     this.monster_move();
 }
 
@@ -692,19 +708,6 @@ Game.prototype.specials = function() {
         var thing = this.player.dungeon.things[idx];
         if ((this.player.x == thing.x) && (this.player.y == thing.y)) {
             thing.special(game);
-        }
-    }
-}
-
-Game.prototype.pressure_pad = function() {
-    for (idx in this.player.dungeon.pressure_pads) {
-        var pressure_pad = this.player.dungeon.pressure_pads[idx];
-        if ((pressure_pad.x == this.player.x) && (pressure_pad.y == this.player.y)) {
-            // set the target x, y to the location type specified by 'open'
-            var target_dungeon = this.dungeons[pressure_pad.target_dungeon]
-            target_dungeon.setLocation(pressure_pad.tx, pressure_pad.ty,
-                pressure_pad.open);
-            play_sound(sound_open_door);
         }
     }
 }

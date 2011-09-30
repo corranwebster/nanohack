@@ -40,22 +40,6 @@ var sprite_palette = {
     '\x13': '#000000',
 }
 
-var pressure_pads = [
-    {x: 29, y: 7, target_dungeon: 'main', tx: 34, ty: 5, open: '\x30'}, 
-    {x: 14, y: 49, target_dungeon: 'main', tx: 2, ty: 56, open: '\x30'}, 
-    {x: 27, y: 55, target_dungeon: 'main', tx: 23, ty: 50, open: '\x30'},	
-    {x: 50, y: 61, target_dungeon: 'main', tx: 59, ty: 52, open: '\x30'}, 
-    {x: 88, y: 49, target_dungeon: 'main', tx: 87, ty: 55, open: '\x30'},
-    {x: 114, y: 50, target_dungeon: 'main', tx: 119, ty: 57, open: '\x30'},
-    {x: 52, y: 40, target_dungeon: 'main', tx: 71, ty: 37, open: '\x30'},
-    {x: 125, y: 33, target_dungeon: 'main', tx: 117, ty: 37, open: '\x30'},
-    {x: 122, y: 2, target_dungeon: 'main', tx: 106, ty: 8, open: '\x30'},
-    {x: 53, y: 18, target_dungeon: 'main', tx: 75, ty: 46, open: '\x30'},
-    {x: 51, y: 5, target_dungeon: 'main', tx: 61, ty: 5, open: '\x30'},
-    {x: 60, y: 29, target_dungeon: 'main', tx: 53, ty: 27, open: '\x30'},
-    {x: 62, y: 23, target_dungeon: 'main', tx: 71, ty: 46, open: '\x30'}
-];
-
 var things = [
     new Gold(21, 2),
     new Gold(60, 2),
@@ -221,7 +205,21 @@ var things = [
     new Teleporter(43, 31, 'main', 6, 43),
     new Teleporter(6, 44, 'main', 44, 31),
     
-    new Teleporter(31, 31, 'main', 70, 45)    
+    new Teleporter(31, 31, 'main', 70, 45),
+    
+    new PressurePad(29, 7, 'main', 34, 5, '\x30'), 
+    new PressurePad(14, 49, 'main', 2, 56, '\x30'), 
+    new PressurePad(27, 55, 'main', 23, 50, '\x30'),	
+    new PressurePad(50, 61, 'main', 59, 52, '\x30'), 
+    new PressurePad(88, 49, 'main', 87, 55, '\x30'),
+    new PressurePad(114, 50, 'main', 119, 57, '\x30'),
+    new PressurePad(52, 40, 'main', 71, 37, '\x30'),
+    new PressurePad(125, 33, 'main', 117, 37, '\x30'),
+    new PressurePad(122, 2, 'main', 106, 8, '\x30'),
+    new PressurePad(53, 18, 'main', 75, 46, '\x30'),
+    new PressurePad(51, 5, 'main', 61, 5, '\x30'),
+    new PressurePad(60, 29, 'main', 53, 27, '\x30'),
+    new PressurePad(62, 23, 'main', 71, 46, '\x30')
 ]
 
 // specials
@@ -232,7 +230,7 @@ key.x = 106; key.y = 12;
 gate.x = 31; gate.y = 31;
 win.x = 71; win.y = 47;
 
-var dungeon = new Dungeon("main", map_data, 128, default_legend, things, pressure_pads);
+var dungeon = new Dungeon("main", map_data, 128, default_legend, things);
 
 var player = new Player(dungeon, 25, 41);
 

@@ -104,6 +104,7 @@ Location.prototype.passable = function(game, who) {
 Location.prototype.transparent = function(game, who) {
     // whether the location can be seen through, given the current game state
     // this doesn't take into account monsters or other obstructions
+    // XXX not currently used
     return this._transparent;
 }
 
@@ -149,48 +150,28 @@ drinking_water.look = function(game, tx, ty) {
     }    
 }
 
-var pub = new Location("#000000");
-pub.look = function(game, tx, ty) {
-    if (game.player.hp < game.player.max_hp) {
-        game.player.hp = game.player.max_hp;
-        play_sound(sound_drink);
-        game.show_sprite(5);
-    }
-}
-
-var church = new Location("#000000");
-church.look = function(game, tx, ty) {
-    if (game.player.magic == 0) {
-        game.player.magic = 1;
-        play_sound(sound_magic);
-        game.show_sprite(6);
-    }
-}
-
 // Location instances
 
 var default_legend = {
-    '\x00': new Location("#000000"),
-    '\x01': new Location("#ffffff"),
-    '\x02': new Location("#915140"),
-    '\x03': new Location("#5d5d5d"),
-    '\x04': new Location("#008800"),
+    '\x00': new Location("#000000"), // wall (black)
+    '\x01': new Location("#ffffff"), // mountain/door (white)
+    '\x02': new Location("#915140"), //
+    '\x03': new Location("#5d5d5d"), // wall (grey)
+    '\x04': new Location("#008800"), // deep forest (dark green)
     '\x05': new Location("#d1a296"),
     
-    '\x10': new Location("#003c80", false, true),
+    '\x10': new Location("#003c80", false, true), // deep water (dark blue)
     
     '\x20': new PassableWithItemLocation("#0047ca", "boat", true),
     
-    '\x30': new Location("#7f7f7f", true, true),
-    '\x31': new Location("#bcbcbc", true, true),
-    '\x32': new Location("#00aa00", true, true),
-    '\x33': new Location("#9cde8d", true, true),
+    '\x30': new Location("#7f7f7f", true, true), // corridor (grey)
+    '\x31': new Location("#bcbcbc", true, true), // corridor (light grey)
+    '\x32': new Location("#00aa00", true, true), // grass (light green)
+    '\x33': new Location("#9cde8d", true, true), 
     '\x34': new Location("#ffff00", true, true),
     
-    '\x40': new Location("#ff0000", true, true),
+    '\x40': new Location("#ff0000", true, true), // teleporter
     '\x41': drinking_water,
-    '\x50': pub,
-    '\x51': church,
 }
 
 var sound_enter_dungeon = load_sound("sounds/enterdungeon.mp3");
@@ -255,6 +236,29 @@ Thing.prototype.remove = function(game) {
     }
 }
 
+// Pub - restores health
+var pub = new Thing("pub", "#000000");
+pub.block = true;
+pub.special = function(game) {
+    if (game.player.hp < game.player.max_hp) {
+        game.player.hp = game.player.max_hp;
+        play_sound(sound_drink);
+        game.show_sprite(5);
+    }
+}
+
+// Church - gives magic
+var church = new Thing("church", "#000000");
+church.block = true;
+church.special = function(game) {
+    if (game.player.magic == 0) {
+        game.player.magic = 1;
+        play_sound(sound_magic);
+        game.show_sprite(6);
+    }
+}
+
+
 // Winning square - entering this triggers end of game with "win" condition
 var win = new Thing('win');
 win.draw = function(gc, x, y) {
@@ -286,6 +290,10 @@ Teleporter.prototype = new Thing();
 Teleporter.prototype.name = "teleporter";
 Teleporter.prototype.color = "#ff0000";
 
+Teleporter.prototype.draw = function(gc, x, y) {
+    return false;
+}
+
 Teleporter.prototype.special = function(game) {
     // move the player to the teleporter's target
     game.player.dungeon = game.dungeons[this.target_dungeon];
@@ -306,6 +314,10 @@ function PressurePad(x, y, target_dungeon, tx, ty, open) {
 PressurePad.prototype = new Thing();
 PressurePad.prototype.name = "pressure pad";
 PressurePad.prototype.color = "#bcbcbc";
+
+PressurePad.prototype.draw = function(gc, x, y) {
+    return false;
+}
 
 PressurePad.prototype.special = function(game) {
     // open the target door

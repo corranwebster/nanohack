@@ -268,15 +268,23 @@ win.special = function(game) {
     game.gameOver("win");
 }
 
-// Gate - can only be entered if the player has the key and enough cash
-var gate = new Thing('gate');
-gate.draw = function(gc, x, y) {
+// Gate - can only be entered if the player has a key item and enough cash
+function Gate(name, x, y, key, gold) {
+    this.name = name
+    this.x = x;
+    this.y = y;
+    this.key = key;
+    this.gold = gold;
+}
+Gate.prototype = new Thing();
+Gate.prototype.draw = function(gc, x, y) {
     return false;
 }
-gate.blocks = function(game) {
+Gate.prototype.blocks = function(game) {
     var player = game.player;
-    return !(player.hasThing('key') && (player.cash >= 16))
+    return !(player.hasThing(this.key) && (player.cash >= this.gold))
 }
+var gate = new Gate('gate');
 
 // Teleporter - move the player to another place
 function Teleporter(x, y, target_dungeon, tx, ty) {

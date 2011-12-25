@@ -38,6 +38,25 @@ function clip(x, a, b) {
     return Math.min(Math.max(x,a),b);
 }
 
+function blocked_by(x1, y1, x2, y2) {
+    // does the square at (x1, y1) block the square at (x2, y2)?
+    
+    // Are they in the same quadrant?
+    if ((x1 != 0 && (x2/x1) < 0) || (y1 != 0 && (y2/y1) < 0))
+        return false;
+    // is x1, y1 closer to 0 than x2, y2?
+    if (Math.abs(x1) > Math.abs(x2) || Math.abs(y1) > Math.abs(y2))
+        return false;
+    
+    // are they the same square?
+    if (x1 == x2 && y1 == y2)
+        return false;
+    
+    // is the distance from x1, y1 to the line joining 0, 0 and x2, y2
+    // less than sqrt(0.5)?
+    return Math.abs(x1*y2 - x2*y1)/Math.sqrt(x2*x2 + y2*y2) < 0.5; //Math.sqrt(0.5);
+}
+
 function load_sound(src) {
     // preload 4 channels for each sound, so we can overlap
     var sound = {channels: [], current: 0};
@@ -79,9 +98,12 @@ function load_sprites(src, palette) {
 // These are featherweight objects used repeatedly in a given map.
 // The on-screen representation will vary depending on the Dungeon's legend.
 
-function Location(color, passable, transparent) {
+function Location(color, faded, passable, transparent) {
     if (!color) {
         color = "#000000";
+    }
+    if (!faded) {
+        faded = "#000000";
     }
     if (!passable) {
         passable = false;
@@ -91,6 +113,7 @@ function Location(color, passable, transparent) {
     }
 
     this.color = color;
+    this.faded = faded;
     this._passable = passable;
     this._transparent = transparent;
 }
@@ -115,15 +138,19 @@ Location.prototype.look = function(game, who) {
 }
 
 // A location which can be traversed if the player has an item
-function PassableWithItemLocation(color, item_name, transparent) {
+function PassableWithItemLocation(color, faded, item_name, transparent) {
     if (!color) {
         color = "#000000";
+    }
+    if (!faded) {
+        faded = "#000000";
     }
     if (!transparent) {
         transparent = false;
     }
 
     this.color = color;
+    this.faded = faded;
     this._transparent = transparent;
     this._item_name = item_name;
 }
@@ -141,7 +168,7 @@ PassableWithItemLocation.prototype.passable = function(game, who) {
     return false;
 }
 
-var drinking_water = new Location("#5672ff", false, true);
+var drinking_water = new Location("#5672ff", "#5672ff", false, true);
 drinking_water.look = function(game, tx, ty) {
     if (game.player.hp < game.player.max_hp) {
         game.player.hp = Math.min(game.player.hp+10, game.player.max_hp);
@@ -153,24 +180,24 @@ drinking_water.look = function(game, tx, ty) {
 // Location instances
 
 var default_legend = {
-    '\x00': new Location("#000000"), // wall (black)
-    '\x01': new Location("#ffffff"), // mountain/door (white)
-    '\x02': new Location("#915140"), //
-    '\x03': new Location("#5d5d5d"), // wall (grey)
-    '\x04': new Location("#008800"), // deep forest (dark green)
-    '\x05': new Location("#d1a296"),
+    '\x00': new Location("#000000", "#000000", false, false), // wall (black)
+    '\x01': new Location("#ffffff", "#ffffff", false, false), // mountain/door (white)
+    '\x02': new Location("#915140", "#915140", false, true), //
+    '\x03': new Location("#5d5d5d", "#5d5d5d", false, false), // wall (grey)
+    '\x04': new Location("#008800", "#008800", false, true), // deep forest (dark green)
+    '\x05': new Location("#d1a296", "#d1a296", false, true),
     
-    '\x10': new Location("#003c80", false, true), // deep water (dark blue)
+    '\x10': new Location("#003c80", "#003c80", false, true), // deep water (dark blue)
     
-    '\x20': new PassableWithItemLocation("#0047ca", "boat", true),
+    '\x20': new PassableWithItemLocation("#0047ca", "#0047ca", "boat", true),
     
-    '\x30': new Location("#7f7f7f", true, true), // corridor (grey)
-    '\x31': new Location("#bcbcbc", true, true), // corridor (light grey)
-    '\x32': new Location("#00aa00", true, true), // grass (light green)
-    '\x33': new Location("#9cde8d", true, true), 
-    '\x34': new Location("#ffff00", true, true),
+    '\x30': new Location("#7f7f7f", "#7f7f7f", true, true), // corridor (grey)
+    '\x31': new Location("#bcbcbc", "#bcbcbc", true, true), // corridor (light grey)
+    '\x32': new Location("#00aa00", "#00aa00", true, true), // grass (light green)
+    '\x33': new Location("#9cde8d", "#9cde8d", true, true), 
+    '\x34': new Location("#ffff00", "#ffff00", true, true),
     
-    '\x40': new Location("#ff0000", true, true), // teleporter
+    '\x40': new Location("#ff0000", "#ff0000", true, true), // teleporter
     '\x41': drinking_water,
 }
 
@@ -504,7 +531,7 @@ function Dungeon(name, map_data, width, legend, things) {
     // secondary attributes
     this.width = width;
     this.height = map_data.length/width;
-    this.default_color = "#000000";
+    this.default_color = "#dfdfdf";
 }
 
 Dungeon.prototype.setLocation = function(x, y, location) {
@@ -513,22 +540,33 @@ Dungeon.prototype.setLocation = function(x, y, location) {
 
 Dungeon.prototype.loadMap = function() {
     this.locations = new Array();
+    this.seen = new Array();
     for (var y=0; y < this.height; y++) {
         this.locations[y] = new Array();
+        this.seen[y] = new Array();
         var row_idx = y*this.width;
         for (var x=0; x < this.width; x++) {
             var idx = row_idx+x;
             this.locations[y][x] = this.legend[this.map_data.charAt(idx)];
+            this.seen[y][x] = false;
         }
     }
 }
 
-
-Dungeon.prototype.drawMap = function(gc, x,y) {
+Dungeon.prototype.drawMap = function(game, gc, x,y) {
     for (var i=-view_radius; i <= view_radius; i++) {
         for (var j=-view_radius; j <= view_radius; j++) {
             if ((x+i >= 0) && (x+i < this.width) && (y+j >= 0) && (y+j < this.height)) {
-                gc.fillStyle = this.locations[y+j][x+i].color;
+                if (game.isVisible(game.player, x+i, y+j)) {
+                    gc.fillStyle = this.locations[y+j][x+i].color;
+                    this.seen[y+j][x+i] = true;
+                }
+                else if (this.seen[y+j][x+i]) {
+                    gc.fillStyle = this.locations[y+j][x+i].faded;
+                }
+                else {
+                    gc.fillStyle = this.default_color;
+                }
             }
             else {
                 gc.fillStyle = this.default_color;
@@ -542,7 +580,8 @@ Dungeon.prototype.drawMap = function(gc, x,y) {
         var i = thing.x - x;
         var j = thing.y - y;
         if ((i >= -view_radius) && (i <= view_radius) &&
-                (j >= -view_radius) && (j <= view_radius)) {
+                (j >= -view_radius) && (j <= view_radius) &&
+                game.isVisible(game.player, thing.x, thing.y)) {
             thing.draw(gc, i+view_radius, j+view_radius);
         }
     }
@@ -705,6 +744,27 @@ Game.prototype.passable = function(tx, ty, who) {
     return dungeon.locations[ty][tx].passable(this, who);
 }
 
+Game.prototype.isVisible = function(who, x2, y2) {
+    // can who see square x2, y2?
+    var x1 = who.x;
+    var y1 = who.y;
+    
+    var x_dir = (x1 >= x2) ? -1 : 1;
+    var y_dir = (y1 >= y2) ? -1 : 1;
+    
+    // is something blocking the view from (x, y) to (x+i, y+j)?
+    for (var i=0; i <= Math.abs(x2-x1); i++) {
+        for (var j=0; j <= Math.abs(y2-y1); j++) {
+            if (blocked_by(i, j, Math.abs(x2-x1), Math.abs(y2-y1))) {
+                var loc = this.player.dungeon.locations[y1+y_dir*j][x1+x_dir*i];
+                if (!loc.transparent(this, who))
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
 Game.prototype.look = function(tx, ty) {
     var dungeon = this.player.dungeon;
 
@@ -763,7 +823,7 @@ Game.prototype.drawMap = function() {
         var x = clip(this.player.x, view_radius, dungeon.width-view_radius-1);
         var y = clip(this.player.y, view_radius, dungeon.height-view_radius-1);
     
-        dungeon.drawMap(gc, x, y);
+        dungeon.drawMap(game, gc, x, y);
         this.player.draw(gc, x, y);
     }
     else {
